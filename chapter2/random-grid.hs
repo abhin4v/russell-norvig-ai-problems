@@ -1,6 +1,6 @@
 module AI.Vacuum.RandomGrid where
 
-import AI.Vacuum
+import AI.Vacuum.Grid
 import System.Random
 import Control.Monad.State
 import qualified Data.Map as M

@@ -1,6 +1,7 @@
 module AI.Vacuum.ReflexAgent where
 
-import AI.Vacuum
+import AI.Vacuum.Cleaner
+import AI.Vacuum.Grid
 import AI.Vacuum.RandomGrid
 import Data.Lens.Common
 import Control.Monad.State

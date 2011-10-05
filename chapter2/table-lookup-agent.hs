@@ -1,6 +1,7 @@
 module AI.Vacuum.TableLookupAgent where
 
-import AI.Vacuum
+import AI.Vacuum.Cleaner
+import AI.Vacuum.Grid
 import Control.Monad.State
 import Data.Lens.Common
 import Data.Maybe (isJust, isNothing, fromJust)
