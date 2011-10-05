@@ -3,6 +3,7 @@
 module AI.Vacuum.Grid where
 
 import qualified Data.Map as M
+import Data.Lens.Common
 import Data.Lens.Template
 import System.IO.Unsafe (unsafePerformIO)
 import Debug.Trace (putTraceMsg)
@@ -13,7 +14,7 @@ trace string expr = unsafePerformIO $ do
     return expr
 
 data Direction = North | East | South | West deriving (Eq, Show, Enum, Bounded)
-data CellType = Empty | Furniture | Dirt | Home deriving (Eq, Show)
+data CellType = Empty | Furniture | Dirt | Home deriving (Eq, Show, Ord)
 type Point = (Int, Int)
 data Cell = Cell { _point :: Point, _cellType :: CellType } deriving (Eq, Show)
 type Grid = M.Map Point Cell
@@ -67,3 +68,13 @@ leftCell (Cell point _) = lookupCell . (leftPoint point)
 
 gridFromCellList :: [Cell] -> Grid
 gridFromCellList = foldl (\m cell@(Cell p _) -> M.insert p cell m) M.empty
+
+gridWidth :: Grid -> Int
+gridWidth = (+ 1) . maximum . map fst . M.keys
+
+gridHeight :: Grid -> Int
+gridHeight = (+ 1) . maximum . map snd . M.keys
+
+gridStats :: Grid -> [(CellType, Int)]
+gridStats = 
+  M.toList . foldl (\m t -> M.insertWith (+) t 1 m) M.empty . map (cellType ^$) . M.elems

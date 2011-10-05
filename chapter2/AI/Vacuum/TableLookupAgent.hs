@@ -4,7 +4,7 @@ import AI.Vacuum.Cleaner
 import AI.Vacuum.Grid
 import Control.Monad.State
 import Data.Lens.Common
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (fromJust)
 
 -- Problem 2.6
 
@@ -25,7 +25,7 @@ chooseAction ph =
     [] -> Just GoForward
     [[]] -> Just TurnRight
     [[PhotoSensor]] -> Just SuckDirt
-    (p:ps) ->
+    (_:ps) ->
       case lookup ps perceptsHistoryToActionMap of
         Just (Just prevAction) -> chooseAction' ph prevAction
         _ -> Nothing

@@ -4,10 +4,11 @@ module AI.Vacuum.Cleaner where
 
 import AI.Vacuum.Grid
 import qualified Data.Map as M
+import qualified Data.Set as S
 import Control.Monad.State
 import Prelude hiding (id, (.))
 import Control.Category
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (fromJust)
 import Data.Lens.Common
 import Data.Lens.Template
 
@@ -15,19 +16,17 @@ data Percept = TouchSensor | PhotoSensor | InfraredSensor deriving (Eq, Ord, Sho
 type Percepts = [Percept]
 type PerceptsHistory = [Percepts]
 data Action = GoForward | TurnRight | TurnLeft | SuckDirt | TurnOff deriving (Eq, Show)
-
 data CleanerState = On | Off deriving (Eq, Show)
 type Score = Int
-data Cleaner =
-  Cleaner {
-    _state :: CleanerState,
-    _cell :: Cell,
-    _direction :: Direction,
-    _path :: [Point],
-    _perceptsHist :: PerceptsHistory,
-    _actionHist :: [Action],
-    _score :: Score
-    } deriving (Show)
+data Cleaner = Cleaner {
+  _state :: CleanerState,
+  _cell :: Cell,
+  _direction :: Direction,
+  _path :: [Point],
+  _perceptsHist :: PerceptsHistory,
+  _actionHist :: [Action],
+  _score :: Score
+  } deriving (Show)
 
 makeLenses [''Cleaner]
 
@@ -81,3 +80,21 @@ doAction action cleaner = do
   $ cleaner
   where
     cellType' = (cleaner^.cell)^.cellType
+
+performance :: Cleaner -> Grid -> Float
+performance cleaner grid =
+  100 * fromIntegral (cleaner^.score) 
+  / fromIntegral (99 * dirtCellCount grid - cellCount grid)
+  where
+    dirtCellCount = M.size . M.filter ((== Dirt) . (cellType ^$))
+    cellCount = M.size
+    
+coverage :: Cleaner -> Grid -> Float
+coverage cleaner grid =
+  100 * fromIntegral (S.size . S.fromList $ cleaner^.path)
+  / fromIntegral (M.size grid)
+
+cleanerAtHome :: Cleaner -> Grid -> Bool
+cleanerAtHome cleaner grid = 
+  (== Home) . (cellType ^$) . fromJust . (flip lookupCell $ grid) . head $ cleaner^.path
+

@@ -5,9 +5,8 @@ import AI.Vacuum.Grid
 import AI.Vacuum.RandomGrid
 import Data.Lens.Common
 import Control.Monad.State
-import Control.Monad.Identity
 import System.Random
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (fromJust)
 
 chooseAction :: Percepts -> RandomState Action
 chooseAction percepts
@@ -52,3 +51,23 @@ simulateOnGrid :: Int -> Grid -> StdGen -> (Cleaner, Grid)
 simulateOnGrid maxTurns grid gen =
   evalState (runStateT (runCleaner maxTurns cleaner) grid) gen
   where cleaner = createCleaner (fromJust $ lookupCell (0,0) grid) East
+
+main :: IO()
+main = do
+  gen <- newStdGen
+  let grid = evalState (makeGrid (20,25) (10,15) 0.15) gen
+  putStrLn ("Grid width = " ++ (show . gridWidth $ grid))
+  putStrLn ("Grid height = " ++ (show . gridHeight $ grid))
+  putStrLn ("Grid stats = " ++ (show . gridStats $ grid))
+  let cleaner = fst $ simulateOnGrid 10000 grid gen
+  putStrLn ("Cleaner finished at home = " 
+            ++ (show $ cleanerAtHome cleaner grid))
+  putStrLn ("Cleaner performance = " 
+            ++ (show $ performance cleaner grid))
+  putStrLn ("Cleaner coverage = " 
+            ++ (show $ coverage cleaner grid))
+  putStrLn ("Cleaner action count = "
+            ++ (show . length $ cleaner^.actionHist))
+  putStrLn ("Cleaner move count = "
+            ++ (show . length $ cleaner^.path))
+    
