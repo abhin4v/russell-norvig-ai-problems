@@ -33,4 +33,3 @@ makeGrid minMaxWidth minMaxHeight dirtProb = do
     (\m p -> makeCell p dirtProb >>= \c -> return $ M.insert p c m)
     (M.singleton (0,0) (Cell (0,0) Home))
     [(x,y) | x <- range (0, width - 1), y <- range (0, height -1), (x,y) /= (0,0)]
-

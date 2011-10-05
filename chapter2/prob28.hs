@@ -1,5 +1,8 @@
+module AI.Vacuum.ReflexAgent where
+
 import AI.Vacuum
 import AI.Vacuum.RandomGrid
+import Data.Lens.Common
 import Control.Monad.State
 import Control.Monad.Identity
 import System.Random
@@ -24,12 +27,13 @@ chooseAction percepts
         | otherwise = return GoForward
 
 runCleaner :: Int -> Cleaner -> StateT Grid RandomState Cleaner
-runCleaner turnsLeft cleaner@(Cleaner _ _ _ ph _) =
+runCleaner turnsLeft cleaner =
   if turnsLeft == 1
     then do
     cleaner' <- doAction TurnOff cleaner
     return cleaner'
     else do
+      let ph = cleaner^.perceptsHist
       cleaner'' <- case ph of
         [] -> do
           cleaner' <- doAction GoForward cleaner
@@ -39,11 +43,11 @@ runCleaner turnsLeft cleaner@(Cleaner _ _ _ ph _) =
           cleaner' <- doAction action cleaner
           return cleaner'
 
-      case clState cleaner'' of
+      case cleaner''^.state of
         Off -> return cleaner''
         On -> runCleaner (turnsLeft - 1) cleaner''
 
 simulateOnGrid :: Int -> Grid -> StdGen -> (Cleaner, Grid)
 simulateOnGrid maxTurns grid gen =
   evalState (runStateT (runCleaner maxTurns cleaner) grid) gen
-  where cleaner = createCleaner (fromJust $ cell (0,0) grid) East
+  where cleaner = createCleaner (fromJust $ lookupCell (0,0) grid) East
