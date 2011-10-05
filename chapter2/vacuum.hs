@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module AI.Vacuum where
 
 import qualified Data.Map as M
@@ -24,13 +26,13 @@ type Grid = M.Map Point Cell
 
 data CleanerState = On | Off deriving (Eq, Show)
 type Score = Int
-data Cleaner = 
-  Cleaner { 
-    clState :: CleanerState, 
-    clCell :: Cell, 
-    clDir :: Direction, 
-    clPrcptsHist :: PerceptsHistory, 
-    clScore :: Score 
+data Cleaner =
+  Cleaner {
+    clState :: CleanerState,
+    clCell :: Cell,
+    clDir :: Direction,
+    clPrcptsHist :: PerceptsHistory,
+    clScore :: Score
     } deriving (Show)
 
 class (Enum a, Eq a, Bounded a) => WrappedBoundedEnum a where
@@ -84,15 +86,15 @@ gridFromCellList = foldl (\m cell@(Cell p _) -> M.insert p cell m) M.empty
 createCleaner :: Cell -> Direction -> Cleaner
 createCleaner cell dir = Cleaner On cell dir [] 0
 
-turnRight :: Cleaner -> State Grid Cleaner
+turnRight :: (MonadState Grid m) => Cleaner -> m Cleaner
 turnRight (Cleaner state cell dir ph score) =
   return $ Cleaner state cell (right dir) ([] : ph) score
 
-turnLeft :: Cleaner -> State Grid Cleaner
+turnLeft :: (MonadState Grid m) => Cleaner -> m Cleaner
 turnLeft (Cleaner state cell dir ph score) =
   return $ Cleaner state cell (left dir) ([] : ph) score
 
-moveForward :: Cleaner -> State Grid Cleaner
+moveForward :: (MonadState Grid m) => Cleaner -> m Cleaner
 moveForward cleaner@(Cleaner state cell@(Cell _ cellType) dir ph score) = do
   grid <- get
   return $
@@ -105,7 +107,7 @@ moveForward cleaner@(Cleaner state cell@(Cell _ cellType) dir ph score) = do
           Dirt -> Cleaner state nextCell dir ([PhotoSensor] : ph) score
           Home -> Cleaner state nextCell dir ([InfraredSensor] : ph) score
 
-doAction :: Action -> Cleaner -> State Grid Cleaner
+doAction :: (MonadState Grid m) => Action -> Cleaner -> m Cleaner
 doAction action cleaner@(Cleaner state cell@(Cell point cellType) dir ph score) =
   case action of
     GoForward -> moveForward $ Cleaner state cell dir ph (score - 1)
@@ -121,5 +123,5 @@ doAction action cleaner@(Cleaner state cell@(Cell point cellType) dir ph score) 
     TurnOff ->
       case cellType of
         Home -> return $ Cleaner Off cell dir ([] : ph) score
-        otherwise -> return $ Cleaner state cell dir ([] : ph) (score - 1000)
+        otherwise -> return $ Cleaner Off cell dir ([] : ph) (score - 1000)
 
