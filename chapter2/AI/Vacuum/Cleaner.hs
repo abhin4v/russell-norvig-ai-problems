@@ -8,14 +8,14 @@ import qualified Data.Set as S
 import Control.Monad.State
 import Prelude hiding (id, (.))
 import Control.Category
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Lens.Common
 import Data.Lens.Template
 
 data Percept = TouchSensor | PhotoSensor | InfraredSensor deriving (Eq, Ord, Show)
 type Percepts = [Percept]
 type PerceptsHistory = [Percepts]
-data Action = GoForward | TurnRight | TurnLeft | SuckDirt | TurnOff deriving (Eq, Show)
+data Action = GoForward | TurnRight | TurnLeft | SuckDirt | TurnOff deriving (Eq, Ord, Show)
 data CleanerState = On | Off deriving (Eq, Show)
 type Score = Int
 data Cleaner = Cleaner {
@@ -81,20 +81,51 @@ doAction action cleaner = do
   where
     cellType' = (cleaner^.cell)^.cellType
 
-performance :: Cleaner -> Grid -> Float
-performance cleaner grid =
-  100 * fromIntegral (cleaner^.score) 
+efficiency :: Cleaner -> Grid -> Float
+efficiency cleaner grid =
+  100 * fromIntegral (cleaner^.score)
   / fromIntegral (99 * dirtCellCount grid - cellCount grid)
   where
     dirtCellCount = M.size . M.filter ((== Dirt) . (cellType ^$))
     cellCount = M.size
-    
+
 coverage :: Cleaner -> Grid -> Float
 coverage cleaner grid =
   100 * fromIntegral (S.size . S.fromList $ cleaner^.path)
   / fromIntegral (M.size grid)
 
+dirtCoverage :: Cleaner -> Grid -> Float
+dirtCoverage cleaner grid =
+  100 * fromIntegral (fromMaybe 0 . lookup SuckDirt . actionStats $ cleaner)
+  / fromIntegral (M.size . M.filter ((== Dirt) . (cellType ^$)) $ grid)
+
 cleanerAtHome :: Cleaner -> Grid -> Bool
-cleanerAtHome cleaner grid = 
+cleanerAtHome cleaner grid =
   (== Home) . (cellType ^$) . fromJust . (flip lookupCell $ grid) . head $ cleaner^.path
 
+actionStats :: Cleaner -> [(Action, Int)]
+actionStats = freqMap . (actionHist ^$)
+
+printRunStats :: Cleaner -> Grid -> IO ()
+printRunStats cleaner grid = do
+  putStrLn ("Grid width = " ++ (show . gridWidth $ grid))
+  putStrLn ("Grid height = " ++ (show . gridHeight $ grid))
+  putStrLn ("Grid size = " ++ (show (gridHeight grid * gridWidth grid)))
+  putStrLn ("Grid stats = " ++ (show . gridStats $ grid))
+
+  putStrLn ("Cleaner score = "
+            ++ (show $ cleaner^.score))
+  putStrLn ("Cleaner finished at home = "
+            ++ (show $ cleanerAtHome cleaner grid))
+  putStrLn ("Cleaner move count = "
+            ++ (show . length $ cleaner^.path))
+  putStrLn ("Cleaner efficiency = "
+            ++ (show $ efficiency cleaner grid))
+  putStrLn ("Cleaner coverage = "
+            ++ (show $ coverage cleaner grid))
+  putStrLn ("Cleaner dirt coverage = "
+            ++ (show $ dirtCoverage cleaner grid))
+  putStrLn ("Cleaner action count = "
+            ++ (show . length $ cleaner^.actionHist))
+  putStrLn ("Cleaner action stats = "
+            ++ (show . actionStats $ cleaner))

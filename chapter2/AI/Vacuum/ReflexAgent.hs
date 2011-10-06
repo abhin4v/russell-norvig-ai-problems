@@ -6,6 +6,7 @@ import AI.Vacuum.RandomGrid
 import Data.Lens.Common
 import Control.Monad.State
 import System.Random
+import System (getArgs)
 import Data.Maybe (fromJust)
 
 chooseAction :: Percepts -> RandomState Action
@@ -52,22 +53,16 @@ simulateOnGrid maxTurns grid gen =
   evalState (runStateT (runCleaner maxTurns cleaner) grid) gen
   where cleaner = createCleaner (fromJust $ lookupCell (0,0) grid) East
 
-main :: IO()
+main :: IO ()
 main = do
   gen <- newStdGen
-  let grid = evalState (makeGrid (20,25) (10,15) 0.15) gen
-  putStrLn ("Grid width = " ++ (show . gridWidth $ grid))
-  putStrLn ("Grid height = " ++ (show . gridHeight $ grid))
-  putStrLn ("Grid stats = " ++ (show . gridStats $ grid))
-  let cleaner = fst $ simulateOnGrid 10000 grid gen
-  putStrLn ("Cleaner finished at home = " 
-            ++ (show $ cleanerAtHome cleaner grid))
-  putStrLn ("Cleaner performance = " 
-            ++ (show $ performance cleaner grid))
-  putStrLn ("Cleaner coverage = " 
-            ++ (show $ coverage cleaner grid))
-  putStrLn ("Cleaner action count = "
-            ++ (show . length $ cleaner^.actionHist))
-  putStrLn ("Cleaner move count = "
-            ++ (show . length $ cleaner^.path))
-    
+  args <- getArgs
+  let minSize = (read $ args !! 0) :: Int
+  let maxSize = (read $ args !! 1) :: Int
+  let dirtProb = (read $ args !! 2) :: Float
+  let maxTurns = (read $ args !! 3) :: Int
+
+  let grid = evalState (makeGrid (minSize,maxSize) (minSize,maxSize) dirtProb) gen
+  let cleaner = fst $ simulateOnGrid maxTurns grid gen
+
+  printRunStats cleaner grid

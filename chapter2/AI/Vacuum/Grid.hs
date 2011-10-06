@@ -69,6 +69,9 @@ leftCell (Cell point _) = lookupCell . (leftPoint point)
 gridFromCellList :: [Cell] -> Grid
 gridFromCellList = foldl (\m cell@(Cell p _) -> M.insert p cell m) M.empty
 
+freqMap :: (Ord a) => [a] -> [(a, Int)]
+freqMap = M.toList . foldl (\m t -> M.insertWith (+) t 1 m) M.empty
+
 gridWidth :: Grid -> Int
 gridWidth = (+ 1) . maximum . map fst . M.keys
 
@@ -76,5 +79,4 @@ gridHeight :: Grid -> Int
 gridHeight = (+ 1) . maximum . map snd . M.keys
 
 gridStats :: Grid -> [(CellType, Int)]
-gridStats = 
-  M.toList . foldl (\m t -> M.insertWith (+) t 1 m) M.empty . map (cellType ^$) . M.elems
+gridStats = freqMap . map (cellType ^$) . M.elems

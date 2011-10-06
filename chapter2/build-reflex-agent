@@ -1,0 +1,1 @@
+ghc -O2 -o ReflexAgent --make -hidir build -odir build -main-is AI.Vacuum.ReflexAgent AI/Vacuum/ReflexAgent.hs AI/Vacuum/RandomGrid.hs AI/Vacuum/Cleaner.hs AI/Vacuum/Grid.hs
