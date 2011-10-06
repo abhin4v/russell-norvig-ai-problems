@@ -6,8 +6,7 @@ import AI.Vacuum.Grid
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Monad.State
-import Prelude hiding (id, (.))
-import Control.Category
+import Data.Ix (range)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Lens.Common
 import Data.Lens.Template
@@ -105,6 +104,20 @@ cleanerAtHome cleaner grid =
 
 actionStats :: Cleaner -> [(Action, Int)]
 actionStats = freqMap . (actionHist ^$)
+
+printPath :: Cleaner -> Grid -> IO ()
+printPath cleaner grid = do
+  let width = gridWidth grid
+  let height = gridHeight grid
+  let points = S.fromList $ cleaner^.path
+
+  forM_ (range (0, width - 1)) $ \x -> do
+    forM_ (range (0, height - 1)) $ \y -> do
+      let cell = fromJust . lookupCell (x,y) $ grid
+      if S.member (cell^.point) points
+        then putStr "- "
+        else putStr . showCell $ cell
+    putStrLn ""
 
 printRunStats :: Cleaner -> Grid -> IO ()
 printRunStats cleaner grid = do

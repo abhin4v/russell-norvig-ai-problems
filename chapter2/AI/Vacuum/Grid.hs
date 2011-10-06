@@ -3,6 +3,9 @@
 module AI.Vacuum.Grid where
 
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
+import Data.Ix (range)
+import Control.Monad (forM_)
 import Data.Lens.Common
 import Data.Lens.Template
 import System.IO.Unsafe (unsafePerformIO)
@@ -80,3 +83,21 @@ gridHeight = (+ 1) . maximum . map snd . M.keys
 
 gridStats :: Grid -> [(CellType, Int)]
 gridStats = freqMap . map (cellType ^$) . M.elems
+
+showCell :: Cell -> String
+showCell cell =
+   case cell^.cellType of
+     Dirt -> "X "
+     Empty -> "O "
+     Furniture -> "F "
+     Home -> "H "
+
+printGrid :: Grid -> IO ()
+printGrid grid = do
+  let width = gridWidth grid
+  let height = gridHeight grid
+
+  forM_ (range (0, width - 1)) $ \x -> do
+    forM_ (range (0, height - 1)) $ \y ->
+      putStr . showCell . fromJust . lookupCell (x,y) $ grid
+    putStrLn ""

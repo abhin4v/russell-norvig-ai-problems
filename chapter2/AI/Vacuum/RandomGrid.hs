@@ -1,4 +1,6 @@
-module AI.Vacuum.RandomGrid where
+module AI.Vacuum.RandomGrid 
+       (RandomState, getRandomR, makeRandomGrid)
+       where
 
 import AI.Vacuum.Grid
 import System.Random
@@ -18,18 +20,19 @@ getRandomR limits = do
   put gen'
   return val
 
-makeCell :: Point -> Float -> RandomState Cell
-makeCell point dirtProb = do
+makeCell :: Point -> Float -> Float -> RandomState Cell
+makeCell point dirtProb furnitureProb = do
   dirtR <- getRandomR (0.0, 1.0)
-  if dirtR <= dirtProb
-    then return $ Cell point Dirt
-    else return $ Cell point Empty
+  case dirtR of
+    dirtR | dirtR < dirtProb -> return $ Cell point Dirt
+    dirtR | dirtR < (dirtProb + furnitureProb) -> return $ Cell point Furniture
+    otherwise -> return $ Cell point Empty
 
-makeGrid :: (Int, Int) -> (Int, Int) -> Float -> RandomState Grid
-makeGrid minMaxWidth minMaxHeight dirtProb = do
+makeRandomGrid :: (Int, Int) -> (Int, Int) -> Float -> Float -> RandomState Grid
+makeRandomGrid minMaxWidth minMaxHeight dirtProb furnitureProb = do
   width <- getRandomR minMaxWidth
   height <- getRandomR minMaxHeight
   foldM
-    (\m p -> makeCell p dirtProb >>= \c -> return $ M.insert p c m)
+    (\m p -> makeCell p dirtProb furnitureProb >>= \c -> return $ M.insert p c m)
     (M.singleton (0,0) (Cell (0,0) Home))
     [(x,y) | x <- range (0, width - 1), y <- range (0, height -1), (x,y) /= (0,0)]

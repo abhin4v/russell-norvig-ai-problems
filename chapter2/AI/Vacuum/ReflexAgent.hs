@@ -61,8 +61,21 @@ main = do
   let maxSize = (read $ args !! 1) :: Int
   let dirtProb = (read $ args !! 2) :: Float
   let maxTurns = (read $ args !! 3) :: Int
+  let toPrintGrid = (read $ args !! 4) :: Bool
 
-  let grid = evalState (makeGrid (minSize,maxSize) (minSize,maxSize) dirtProb) gen
-  let cleaner = fst $ simulateOnGrid maxTurns grid gen
+  let grid = evalState
+             (makeRandomGrid (minSize,maxSize) (minSize,maxSize) dirtProb 0.0) gen
+
+  when toPrintGrid $ do
+    putStrLn "Grid before traversal"
+    printGrid grid
+    putStrLn ""
+
+  let (cleaner, grid') = simulateOnGrid maxTurns grid gen
+
+  when toPrintGrid $ do
+    putStrLn "Grid after traversal"
+    printPath cleaner grid'
+    putStrLn ""
 
   printRunStats cleaner grid
