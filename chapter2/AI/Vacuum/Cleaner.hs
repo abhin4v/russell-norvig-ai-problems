@@ -5,6 +5,7 @@ module AI.Vacuum.Cleaner where
 import AI.Vacuum.Grid
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.List as L
 import Control.Monad.State
 import Data.Ix (range)
 import Data.Maybe (fromJust, fromMaybe)
@@ -111,13 +112,31 @@ printPath cleaner grid = do
   let height = gridHeight grid
   let points = S.fromList $ cleaner^.path
 
-  forM_ (range (0, width - 1)) $ \x -> do
-    forM_ (range (0, height - 1)) $ \y -> do
+  forM_ (range (0, height - 1)) $ \y -> do
+    forM_ (range (0, width - 1)) $ \x -> do
       let cell = fromJust . lookupCell (x,y) $ grid
       if S.member (cell^.point) points
-        then putStr "- "
+        then putStr $ showPoint (cell^.point)
         else putStr . showCell $ cell
     putStrLn ""
+  where
+    cleanerPath = cleaner^.path
+    nextPoint p =
+      case L.elemIndex p $ cleanerPath of
+        Nothing -> Nothing
+        Just i | i == 0 -> Nothing
+        Just i -> Just $ cleanerPath !! (i - 1)
+    showPoint p =
+      case nextPoint p of
+        Nothing -> "- "
+        Just np ->
+          case orientation p np of
+            (Nothing, Nothing) -> "- "
+            (Just East, Nothing) -> "> "
+            (Just West, Nothing) -> "< "
+            (Nothing, Just South) -> "v "
+            (Nothing, Just North) -> "^ "
+            _ -> "- "
 
 printRunStats :: Cleaner -> Grid -> IO ()
 printRunStats cleaner grid = do

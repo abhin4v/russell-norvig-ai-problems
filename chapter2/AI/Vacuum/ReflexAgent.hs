@@ -1,4 +1,4 @@
-module AI.Vacuum.ReflexAgent where
+module AI.Vacuum.ReflexAgent (simulateOnGrid, printSimulation) where
 
 import AI.Vacuum.Cleaner
 import AI.Vacuum.Grid
@@ -35,36 +35,27 @@ runCleaner turnsLeft cleaner =
     return cleaner'
     else do
       let ph = cleaner^.perceptsHist
-      cleaner'' <- case ph of
-        [] -> do
-          cleaner' <- doAction GoForward cleaner
-          return cleaner'
+      cleaner' <- case ph of
+        [] -> doAction GoForward cleaner
         _ -> do
           action <- lift $ chooseAction (head ph)
-          cleaner' <- doAction action cleaner
-          return cleaner'
-
-      case cleaner''^.state of
-        Off -> return cleaner''
-        On -> runCleaner (turnsLeft - 1) cleaner''
+          doAction action cleaner
+      case cleaner'^.state of
+        Off -> return cleaner'
+        On -> runCleaner (turnsLeft - 1) cleaner'
 
 simulateOnGrid :: Int -> Grid -> StdGen -> (Cleaner, Grid)
 simulateOnGrid maxTurns grid gen =
   evalState (runStateT (runCleaner maxTurns cleaner) grid) gen
   where cleaner = createCleaner (fromJust $ lookupCell (0,0) grid) East
 
-main :: IO ()
-main = do
+printSimulation :: Int -> Int -> Int -> Float -> Bool -> IO ()
+printSimulation
+  minSize maxSize maxTurns dirtProb toPrintGrid = do
   gen <- newStdGen
-  args <- getArgs
-  let minSize = (read $ args !! 0) :: Int
-  let maxSize = (read $ args !! 1) :: Int
-  let dirtProb = (read $ args !! 2) :: Float
-  let maxTurns = (read $ args !! 3) :: Int
-  let toPrintGrid = (read $ args !! 4) :: Bool
-
   let grid = evalState
-             (makeRandomGrid (minSize,maxSize) (minSize,maxSize) dirtProb 0.0) gen
+             (makeRandomGrid (minSize,maxSize) (minSize,maxSize) dirtProb 0.0)
+             gen
 
   when toPrintGrid $ do
     putStrLn "Grid before traversal"
@@ -79,3 +70,14 @@ main = do
     putStrLn ""
 
   printRunStats cleaner grid
+
+main :: IO ()
+main = do
+  args <- getArgs
+  let minSize = (read $ args !! 0) :: Int
+  let maxSize = (read $ args !! 1) :: Int
+  let dirtProb = (read $ args !! 2) :: Float
+  let maxTurns = (read $ args !! 3) :: Int
+  let toPrintGrid = (read $ args !! 4) :: Bool
+
+  printSimulation minSize maxSize maxTurns dirtProb toPrintGrid
