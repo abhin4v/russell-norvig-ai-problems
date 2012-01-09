@@ -1,3 +1,6 @@
+-- Solves the sliding puzzle problem (http://en.wikipedia.org/wiki/Sliding_puzzle)
+-- using A* algorithm
+
 import Data.Ix
 import Data.Array
 import Data.List
@@ -31,7 +34,7 @@ type Cost = Int
 class Eq a => GameState a where
   succs ::  a -> [(a, Cost)]
 
--- A* algorithm: Find a path from initialState to goalState using heuristic
+-- A* algorithm: Find a path from initial state to goal state using heuristic
 astar :: (GameState a, Show a, Ord a) => a ->  a -> (a ->  a -> Cost) -> [a]
 astar initState goalState hueristic =
   astar' (PQ.singleton (hueristic initState goalState) (initState, 0)) S.empty M.empty
@@ -163,8 +166,8 @@ puzzlePairty pz =
         i = inversions pz
         b = fst . blankPos $ pz
 
--- Solves an n sliding puzzle from initState to goalState using heuristic.
--- Return Nothing if the goalState is not reachable from initState
+-- Solves a sliding puzzle from initial state to goal state using the given heuristic.
+-- Return Nothing if the goal state is not reachable from initial state
 -- else returns Just solution.
 solvePuzzle :: (Show a, Ord a) => Puzzle a -> Puzzle a
                -> (Puzzle a -> Puzzle a -> Cost) -> Maybe [Puzzle a]
@@ -173,7 +176,7 @@ solvePuzzle initState goalState hueristic =
   then Nothing
   else Just (astar initState goalState hueristic)
 
--- Returns number of tiles in wrong position in givenState compared to goalState
+-- Returns number of tiles in wrong position in given state compared to goal state
 wrongTileCount :: Eq a => Puzzle a -> Puzzle a -> Cost
 wrongTileCount givenState goalState =
   length . filter (\(a, b) -> a /= b)
@@ -191,19 +194,19 @@ sumManhattanDistance givenState goalState =
   . assocs . pzState $ givenState
   where
     revM = M.fromList . map (\(x, y) -> (y, x)) . assocs . pzState $ goalState
-    
--- The classic 15 puzzle
+
+-- The classic 15 puzzle (http://en.wikipedia.org/wiki/Fifteen_puzzle)
 fifteenPuzzle :: IO ()
 fifteenPuzzle = do
   -- Random generator
   gen <- newStdGen
-  
+
   -- The goal
   let goalState = fromJust $ fromList 0 4 [0..15]
   -- Shuffle the goal to get a random puzzle state
   let initState = evalState (shufflePuzzle 50 goalState) gen
   -- Solve using sum manhattan distance heuristic
   let solution = fromJust $ solvePuzzle initState goalState sumManhattanDistance
-  
+
+  -- Print the solution
   forM_ solution $ \s -> print s
-  
