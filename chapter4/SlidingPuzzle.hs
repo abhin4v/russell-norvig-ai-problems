@@ -32,11 +32,11 @@ swap i i' a = a // [(i, a ! i'), (i', a ! i)]
 type Cost = Int
 
 -- A state in the game
-class Eq a => GameState a where
+class Ord a => GameState a where
   succs ::  a -> [(a, Cost)]
 
 -- A* algorithm: Find a path from initial state to goal state using heuristic
-astar :: (GameState a, Show a, Ord a) => a ->  a -> (a ->  a -> Cost) -> [a]
+astar :: GameState a => a ->  a -> (a ->  a -> Cost) -> [a]
 astar initState goalState hueristic =
   astar' (PQ.singleton (hueristic initState goalState) (initState, 0)) S.empty M.empty
   where
@@ -114,7 +114,7 @@ showPuzzleState pz =
   where len = puzzleSize pz
 
 -- Find the position of the blank
-blankPos :: Eq a => Puzzle a -> Point
+blankPos :: Ord a => Puzzle a -> Point
 blankPos pz =
   fst . fromJust . find (\(i, tile) -> tile == (blank pz)) . A.assocs . pzState $ pz
 
@@ -125,7 +125,7 @@ neighbourPos len p@(x, y) =
   $ [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
 
 -- Get the next legal puzzle states
-nextStates :: Eq a => Puzzle a -> [Puzzle a]
+nextStates :: Ord a => Puzzle a -> [Puzzle a]
 nextStates pz = map (\p -> Puzzle (blank pz) (swap p blankAt (pzState pz)))
                 $ neighbourPos len blankAt
   where
@@ -133,15 +133,15 @@ nextStates pz = map (\p -> Puzzle (blank pz) (swap p blankAt (pzState pz)))
     blankAt = blankPos pz
 
 -- Make Puzzle an instance of GameState with unit step cost
-instance Eq a => GameState (Puzzle a) where
+instance Ord a => GameState (Puzzle a) where
   succs pz = zip (nextStates pz) (repeat 1)
 
 -- Make Puzzle an instance of Show for pretty printing
-instance (Show a) => Show (Puzzle a) where
+instance Show a => Show (Puzzle a) where
   show pz = showPuzzleState pz
 
 -- Shuffles a puzzle n times randomly to return a new (reachable) puzzle.
-shufflePuzzle :: (Eq a) => Int -> Puzzle a -> RandomState (Puzzle a)
+shufflePuzzle :: Ord a => Int -> Puzzle a -> RandomState (Puzzle a)
 shufflePuzzle n pz =
   if n == 0
   then return pz
@@ -158,7 +158,7 @@ inversions pz = sum . map (\l -> length . filter (\e -> e < head l) $ (tail l))
   where b = blank pz
 
 -- Calculates the puzzle pairty. The puzzle pairty is invariant under legal moves.
-puzzlePairty :: (Ord a) => Puzzle a -> Int
+puzzlePairty :: Ord a => Puzzle a -> Int
 puzzlePairty pz =
   if odd w
   then (w + i) `mod` 2
@@ -170,7 +170,7 @@ puzzlePairty pz =
 -- Solves a sliding puzzle from initial state to goal state using the given heuristic.
 -- Return Nothing if the goal state is not reachable from initial state
 -- else returns Just solution.
-solvePuzzle :: (Show a, Ord a) => Puzzle a -> Puzzle a
+solvePuzzle ::  Ord a => Puzzle a -> Puzzle a
                -> (Puzzle a -> Puzzle a -> Cost) -> Maybe [Puzzle a]
 solvePuzzle initState goalState hueristic =
   if puzzlePairty initState /= puzzlePairty goalState
@@ -178,7 +178,7 @@ solvePuzzle initState goalState hueristic =
   else Just (astar initState goalState hueristic)
 
 -- Returns number of tiles in wrong position in given state compared to goal state
-wrongTileCount :: Eq a => Puzzle a -> Puzzle a -> Cost
+wrongTileCount :: Ord a => Puzzle a -> Puzzle a -> Cost
 wrongTileCount givenState goalState =
   length . filter (\(a, b) -> a /= b)
   $ zip (A.elems . pzState $ givenState) (A.elems . pzState $ goalState)
