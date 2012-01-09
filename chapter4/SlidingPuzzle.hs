@@ -2,7 +2,8 @@
 -- using A* algorithm
 
 import Data.Ix
-import Data.Array
+import qualified Data.Array as A
+import Data.Array (Array, array, (//), (!))
 import Data.List
 import Data.List.Split
 import Data.Maybe
@@ -92,7 +93,7 @@ data Puzzle a = Puzzle { blank :: a, pzState :: Array Point a } deriving (Eq, Or
 
 -- Get puzzle size
 puzzleSize :: Puzzle a -> Int
-puzzleSize = fst . snd . bounds . pzState
+puzzleSize = fst . snd . A.bounds . pzState
 
 -- Create a puzzle give the blank, the puzzle size and the puzzle state as a list,
 -- left to right, top to bottom.
@@ -109,19 +110,19 @@ showPuzzleState :: Show a => Puzzle a -> String
 showPuzzleState pz =
   ('\n' :) . concat . intersperse "\n"
   . map (concat . intersperse " ") . splitEvery len
-  . map show . elems . pzState $ pz
+  . map show . A.elems . pzState $ pz
   where len = puzzleSize pz
 
 -- Find the position of the blank
 blankPos :: Eq a => Puzzle a -> Point
 blankPos pz =
-  fst . fromJust . find (\(i, tile) -> tile == (blank pz)) . assocs . pzState $ pz
+  fst . fromJust . find (\(i, tile) -> tile == (blank pz)) . A.assocs . pzState $ pz
 
 -- Get the legal neighbouring positions
 neighbourPos :: Int -> Point -> [Point]
 neighbourPos len p@(x, y) =
   filter (\(x',y') -> and [x' >= 1, y' >= 1, x' <= len, y' <= len])
-  [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
+  $ [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
 
 -- Get the next legal puzzle states
 nextStates :: Eq a => Puzzle a -> [Puzzle a]
@@ -131,7 +132,7 @@ nextStates pz = map (\p -> Puzzle (blank pz) (swap p blankAt (pzState pz)))
     len = puzzleSize pz
     blankAt = blankPos pz
 
--- Make Puzzle an instance of GameState with step cost one
+-- Make Puzzle an instance of GameState with unit step cost
 instance Eq a => GameState (Puzzle a) where
   succs pz = zip (nextStates pz) (repeat 1)
 
@@ -153,7 +154,7 @@ shufflePuzzle n pz =
 inversions :: Ord a => Puzzle a -> Int
 inversions pz = sum . map (\l -> length . filter (\e -> e < head l) $ (tail l))
                 . filter ((> 1). length) . tails
-                . filter (not . (== b)) . elems . pzState $ pz
+                . filter (not . (== b)) . A.elems . pzState $ pz
   where b = blank pz
 
 -- Calculates the puzzle pairty. The puzzle pairty is invariant under legal moves.
@@ -180,7 +181,7 @@ solvePuzzle initState goalState hueristic =
 wrongTileCount :: Eq a => Puzzle a -> Puzzle a -> Cost
 wrongTileCount givenState goalState =
   length . filter (\(a, b) -> a /= b)
-  $ zip (elems . pzState $ givenState) (elems . pzState $ goalState)
+  $ zip (A.elems . pzState $ givenState) (A.elems . pzState $ goalState)
 
 -- Calculates Manhattan distance between two points
 manhattanDistance :: Point -> Point -> Int
@@ -191,9 +192,9 @@ manhattanDistance (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
 sumManhattanDistance :: Ord a => Puzzle a -> Puzzle a -> Cost
 sumManhattanDistance givenState goalState =
   sum . map (\(p, t) -> manhattanDistance p (fromJust . M.lookup t $ revM))
-  . assocs . pzState $ givenState
+  . A.assocs . pzState $ givenState
   where
-    revM = M.fromList . map (\(x, y) -> (y, x)) . assocs . pzState $ goalState
+    revM = M.fromList . map (\(x, y) -> (y, x)) . A.assocs . pzState $ goalState
 
 -- The classic 15 puzzle (http://en.wikipedia.org/wiki/Fifteen_puzzle)
 fifteenPuzzle :: IO ()
