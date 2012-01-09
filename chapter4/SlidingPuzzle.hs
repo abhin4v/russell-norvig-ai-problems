@@ -8,13 +8,6 @@ import qualified Data.Map as M
 import qualified Data.PQueue.Prio.Min as PQ
 import System.Random
 import Control.Monad.State
--- import System.IO.Unsafe (unsafePerformIO)
--- import Debug.Trace (putTraceMsg)
-
--- trace :: String -> a -> a
--- trace string expr = unsafePerformIO $ do
---     putTraceMsg string
---     return expr
 
 -- A State with a ramdom generator
 type RandomState = State StdGen
@@ -43,26 +36,45 @@ astar :: (GameState a, Show a, Ord a) => a ->  a -> (a ->  a -> Cost) -> [a]
 astar initState goalState hueristic =
   astar' (PQ.singleton (hueristic initState goalState) (initState, 0)) S.empty M.empty
   where
+    -- pq: open set, seen: closed set, tracks: tracks of states
     astar' pq seen tracks =
+      -- If goal state reached
       if state == goalState
+      -- then construct the path from the tracks and state
       then findPath tracks state
+      -- else if state has already been seen
       else if S.member state seen
+           -- then discard it and continue
            then astar' pq' seen tracks
+           -- else expand the state and continue
            else astar' pq'' seen' tracks'
-      where 
+      where
+        -- Find the state with min f-cost
         (state, cost) = snd . PQ.findMin $ pq
+
+        -- Delete the state from open set
         pq' = PQ.deleteMin pq
+
+        -- Add the state to the closed set
         seen' =  S.insert state seen
-        successors = filter (\(s, _, _) -> not $ S.member s seen') 
+
+        -- Find the successors (with their g and h costs) of the state
+        -- which have not been seen yet
+        successors = filter (\(s, _, _) -> not $ S.member s seen')
                      $ succsWithPrio state cost
-        pq'' = foldl (\q (s, c, h) -> PQ.insert (c + h) (s, c) q) 
-               pq' successors
+
+        -- Insert the successors in the open set
+        pq'' = foldl (\q (s, c, h) -> PQ.insert (c + h) (s, c) q) pq' successors
+
+        -- Insert the tracks of the successors
         tracks' = foldl (\m (s, _, _) -> M.insert s state m) tracks successors
-        
+
+    -- Finds the successors of a given state and their costs
     succsWithPrio state cost =
       map (\(s,c) -> (s, cost + c, hueristic s goalState)) . succs $ state
 
-    findPath tracks state = 
+    -- Constructs the path from the tracks and last state
+    findPath tracks state =
       if M.member state tracks
       then findPath tracks (fromJust . M.lookup state $ tracks) ++ [state]
       else [state]
@@ -116,9 +128,11 @@ nextStates pz = map (\p -> Puzzle (blank pz) (swap p blankAt (pzState pz)))
     len = puzzleSize pz
     blankAt = blankPos pz
 
+-- Make Puzzle an instance of GameState with step cost one
 instance Eq a => GameState (Puzzle a) where
   succs pz = zip (nextStates pz) (repeat 1)
 
+-- Make Puzzle an instance of Show for pretty printing
 instance (Show a) => Show (Puzzle a) where
   show pz = showPuzzleState pz
 
@@ -165,12 +179,31 @@ wrongTileCount givenState goalState =
   length . filter (\(a, b) -> a /= b)
   $ zip (elems . pzState $ givenState) (elems . pzState $ goalState)
 
+-- Calculates Manhattan distance between two points
 manhattanDistance :: Point -> Point -> Int
 manhattanDistance (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
 
+-- Calculates the sum of Manhattan distances of tiles between positions in
+-- given state and goal state
 sumManhattanDistance :: Ord a => Puzzle a -> Puzzle a -> Cost
 sumManhattanDistance givenState goalState =
-  sum . map (\(p, t) -> manhattanDistance p (fromJust . M.lookup t $ revM)) 
+  sum . map (\(p, t) -> manhattanDistance p (fromJust . M.lookup t $ revM))
   . assocs . pzState $ givenState
   where
     revM = M.fromList . map (\(x, y) -> (y, x)) . assocs . pzState $ goalState
+    
+-- The classic 15 puzzle
+fifteenPuzzle :: IO ()
+fifteenPuzzle = do
+  -- Random generator
+  gen <- newStdGen
+  
+  -- The goal
+  let goalState = fromJust $ fromList 0 4 [0..15]
+  -- Shuffle the goal to get a random puzzle state
+  let initState = evalState (shufflePuzzle 50 goalState) gen
+  -- Solve using sum manhattan distance heuristic
+  let solution = fromJust $ solvePuzzle initState goalState sumManhattanDistance
+  
+  forM_ solution $ \s -> print s
+  
