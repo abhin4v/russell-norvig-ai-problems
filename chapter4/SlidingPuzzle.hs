@@ -1,6 +1,7 @@
-module SlidingPuzzle where
 -- Solves the sliding puzzle problem (http://en.wikipedia.org/wiki/Sliding_puzzle)
 -- using A* algorithm
+
+module SlidingPuzzle where
 
 import Data.Ix
 import qualified Data.Array as A
