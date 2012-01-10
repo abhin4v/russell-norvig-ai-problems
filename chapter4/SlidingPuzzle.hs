@@ -1,3 +1,4 @@
+module SlidingPuzzle where
 -- Solves the sliding puzzle problem (http://en.wikipedia.org/wiki/Sliding_puzzle)
 -- using A* algorithm
 
@@ -88,6 +89,7 @@ type Point = (Int, Int)
 
 -- A sliding puzzle
 -- blank : which item is considered blank
+-- blankPos : position of blank
 -- pzState : the current state of the puzzle
 data Puzzle a = Puzzle { blank :: a, blankPos :: Point, pzState :: Array Point a }
               deriving (Eq, Ord)
@@ -107,7 +109,7 @@ fromList b n xs =
                      , blankPos = let (d, r) = (fromJust . elemIndex b $ xs) `divMod` n
                                   in (d + 1, r + 1)
                      , pzState = array ((1, 1), (n, n))
-                                 [((i, j), xs !! (n * (i-1) + (j-1)))
+                                 [((i, j), xs !! (n * (i - 1) + (j - 1)))
                                  | i <- range (1, n), j <- range (1, n)]
                      }
 
