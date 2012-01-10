@@ -54,7 +54,7 @@ astar initState goalState hueristic =
            else astar' pq'' seen' tracks'
       where
         -- Find the state with min f-cost
-        (state, cost) = snd . PQ.findMin $ pq
+        (state, gcost) = snd . PQ.findMin $ pq
 
         -- Delete the state from open set
         pq' = PQ.deleteMin pq
@@ -65,17 +65,17 @@ astar initState goalState hueristic =
         -- Find the successors (with their g and h costs) of the state
         -- which have not been seen yet
         successors = filter (\(s, _, _) -> not $ S.member s seen')
-                     $ succsWithPrio state cost
+                     $ successorsAndCosts state gcost
 
         -- Insert the successors in the open set
-        pq'' = foldl (\q (s, c, h) -> PQ.insert (c + h) (s, c) q) pq' successors
+        pq'' = foldl (\q (s, g, h) -> PQ.insert (g + h) (s, g) q) pq' successors
 
         -- Insert the tracks of the successors
         tracks' = foldl (\m (s, _, _) -> M.insert s state m) tracks successors
 
     -- Finds the successors of a given state and their costs
-    succsWithPrio state cost =
-      map (\(s,c) -> (s, cost + c, hueristic s goalState)) . succs $ state
+    successorsAndCosts state gcost =
+      map (\(s,g) -> (s, gcost + g, hueristic s goalState)) . succs $ state
 
     -- Constructs the path from the tracks and last state
     findPath tracks state =
@@ -89,7 +89,8 @@ type Point = (Int, Int)
 -- A sliding puzzle
 -- blank : which item is considered blank
 -- pzState : the current state of the puzzle
-data Puzzle a = Puzzle { blank :: a, pzState :: Array Point a } deriving (Eq, Ord)
+data Puzzle a = Puzzle { blank :: a, blankPos :: Point, pzState :: Array Point a }
+              deriving (Eq, Ord)
 
 -- Get puzzle size
 puzzleSize :: Puzzle a -> Int
@@ -98,25 +99,24 @@ puzzleSize = fst . snd . A.bounds . pzState
 -- Create a puzzle give the blank, the puzzle size and the puzzle state as a list,
 -- left to right, top to bottom.
 -- Return Just puzzle if valid, Nothing otherwise
-fromList :: a -> Int -> [a] -> Maybe (Puzzle a)
+fromList :: Ord a => a -> Int -> [a] -> Maybe (Puzzle a)
 fromList b n xs =
-  if n * n /= length xs
+  if (n * n /= length xs) || (b `notElem` xs)
   then Nothing
-  else Just . Puzzle b $ array ((1, 1), (n, n)) [((i, j), xs !! (n * (i-1) + (j-1)))
-                                                | i <- range (1, n), j <- range (1, n)]
+  else Just $ Puzzle { blank = b
+                     , blankPos = let (d, r) = (fromJust . elemIndex b $ xs) `divMod` n
+                                  in (d + 1, r + 1)
+                     , pzState = array ((1, 1), (n, n))
+                                 [((i, j), xs !! (n * (i-1) + (j-1)))
+                                 | i <- range (1, n), j <- range (1, n)]
+                     }
 
 -- Shows the puzzle state as a string
 showPuzzleState :: Show a => Puzzle a -> String
 showPuzzleState pz =
   ('\n' :) . concat . intersperse "\n"
-  . map (concat . intersperse " ") . splitEvery len
+  . map (concat . intersperse " ") . splitEvery (puzzleSize pz)
   . map show . A.elems . pzState $ pz
-  where len = puzzleSize pz
-
--- Find the position of the blank
-blankPos :: Ord a => Puzzle a -> Point
-blankPos pz =
-  fst . fromJust . find (\(i, tile) -> tile == (blank pz)) . A.assocs . pzState $ pz
 
 -- Get the legal neighbouring positions
 neighbourPos :: Int -> Point -> [Point]
@@ -126,10 +126,9 @@ neighbourPos len p@(x, y) =
 
 -- Get the next legal puzzle states
 nextStates :: Ord a => Puzzle a -> [Puzzle a]
-nextStates pz = map (\p -> Puzzle (blank pz) (swap p blankAt (pzState pz)))
-                $ neighbourPos len blankAt
+nextStates pz = map (\p -> Puzzle (blank pz) p (swap p blankAt (pzState pz)))
+                $ neighbourPos (puzzleSize pz) blankAt
   where
-    len = puzzleSize pz
     blankAt = blankPos pz
 
 -- Make Puzzle an instance of GameState with unit step cost
@@ -146,16 +145,15 @@ shufflePuzzle n pz =
   if n == 0
   then return pz
   else do
-    let s = succs pz
+    let s = nextStates pz
     i <- getRandomR (0, length s - 1)
-    shufflePuzzle (n - 1) (fst (s !! i))
+    shufflePuzzle (n - 1) (s !! i)
 
 -- Calculates the number of inversions in puzzle
 inversions :: Ord a => Puzzle a -> Int
 inversions pz = sum . map (\l -> length . filter (\e -> e < head l) $ (tail l))
                 . filter ((> 1). length) . tails
-                . filter (not . (== b)) . A.elems . pzState $ pz
-  where b = blank pz
+                . filter (not . (== (blank pz))) . A.elems . pzState $ pz
 
 -- Calculates the puzzle pairty. The puzzle pairty is invariant under legal moves.
 puzzlePairty :: Ord a => Puzzle a -> Int
