@@ -12,6 +12,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 import qualified Data.PQueue.Prio.Min as PQ
 import System.Random
+import System.Environment
 import Control.Monad.State
 
 -- A State with a ramdom generator
@@ -37,22 +38,21 @@ class Ord a => GameState a where
   succs ::  a -> [(a, Cost)]
 
 -- A* algorithm: Find a path from initial state to goal state using heuristic
-astar :: GameState a => a ->  a -> (a ->  a -> Cost) -> [a]
+-- Returns Nothing if no path found. Else returns Just (path cost, path).
+astar :: GameState a => a ->  a -> (a ->  a -> Cost) -> Maybe (Cost, [a])
 astar initState goalState hueristic =
   astar' (PQ.singleton (hueristic initState goalState) (initState, 0)) S.empty M.empty
   where
     -- pq: open set, seen: closed set, tracks: tracks of states
-    astar' pq seen tracks =
-      -- If goal state reached
-      if state == goalState
-      -- then construct the path from the tracks and state
-      then findPath tracks state
-      -- else if state has already been seen
-      else if S.member state seen
-           -- then discard it and continue
-           then astar' pq' seen tracks
-           -- else expand the state and continue
-           else astar' pq'' seen' tracks'
+    astar' pq seen tracks
+      -- If goal state reached then construct the path from the tracks and state
+      | state == goalState = Just (gcost, findPath tracks state)
+      -- If open set is empty then search has failed. Return Nothing
+      | PQ.null pq = Nothing
+      -- If state has already been seen then discard it and continue
+      | S.member state seen = astar' pq' seen tracks
+      -- Else expand the state and continue
+      | otherwise = astar' pq'' seen' tracks'
       where
         -- Find the state with min f-cost
         (state, gcost) = snd . PQ.findMin $ pq
@@ -169,13 +169,13 @@ puzzlePairty pz =
 
 -- Solves a sliding puzzle from initial state to goal state using the given heuristic.
 -- Return Nothing if the goal state is not reachable from initial state
--- else returns Just solution.
+-- else returns Just (cost, path).
 solvePuzzle ::  Ord a => Puzzle a -> Puzzle a
-               -> (Puzzle a -> Puzzle a -> Cost) -> Maybe [Puzzle a]
+               -> (Puzzle a -> Puzzle a -> Cost) -> Maybe (Cost, [Puzzle a])
 solvePuzzle initState goalState hueristic =
   if puzzlePairty initState /= puzzlePairty goalState
   then Nothing
-  else Just (astar initState goalState hueristic)
+  else astar initState goalState hueristic
 
 -- Returns number of tiles in wrong position in given state compared to goal state
 wrongTileCount :: Ord a => Puzzle a -> Puzzle a -> Cost
@@ -197,17 +197,26 @@ sumManhattanDistance givenState goalState =
     revM = M.fromList . map (\(x, y) -> (y, x)) . A.assocs . pzState $ goalState
 
 -- The classic 15 puzzle (http://en.wikipedia.org/wiki/Fifteen_puzzle)
-fifteenPuzzle :: IO ()
-fifteenPuzzle = do
+-- seed : the seed for random generator
+fifteenPuzzle :: Int -> IO ()
+fifteenPuzzle seed = do
   -- Random generator
-  gen <- newStdGen
+  let gen = mkStdGen seed
 
   -- The goal
   let goalState = fromJust $ fromList 0 4 [0..15]
   -- Shuffle the goal to get a random puzzle state
   let initState = evalState (shufflePuzzle 50 goalState) gen
   -- Solve using sum manhattan distance heuristic
-  let solution = fromJust $ solvePuzzle initState goalState sumManhattanDistance
+  let (cost, solution) = fromJust $ solvePuzzle initState goalState sumManhattanDistance
 
   -- Print the solution
   forM_ solution $ \s -> print s
+
+  putStrLn ("Cost: " ++ show cost)
+
+-- The main
+main :: IO ()
+main = do
+  args <- getArgs
+  fifteenPuzzle $ read (args !! 0)
